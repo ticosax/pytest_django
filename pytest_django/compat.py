@@ -26,7 +26,6 @@ except ImportError:
 
 del _runner
 
-
 try:
     from django import setup
 except ImportError:

@@ -3,6 +3,9 @@
 If these tests fail you probably forgot to run "python setup.py develop".
 """
 
+import pytest
+import django
+
 BARE_SETTINGS = '''
 # At least one database must be configured
 DATABASES = {
@@ -233,5 +236,52 @@ def test_debug_false(testdir, monkeypatch):
         def test_debug_is_false():
             assert settings.DEBUG is False
     """)
+
     r = testdir.runpytest()
     assert r.ret == 0
+
+
+@pytest.mark.skipif(not hasattr(django, 'setup'),
+                    reason="This Django version does not support app loading")
+@pytest.mark.extra_settings("""
+INSTALLED_APPS = [
+    'tpkg.app.apps.TestApp',
+]
+
+""")
+def test_django_setup(django_testdir):
+    django_testdir.create_app_file("""
+from django.apps import apps, AppConfig
+
+from django.contrib.auth.models import AbstractUser
+from django.db import models
+
+
+class TestApp(AppConfig):
+    name = 'tpkg.app'
+
+    def ready(self):
+        print ('READY(): populating=%r' % apps._lock.locked())
+
+""", 'apps.py')
+
+    django_testdir.create_app_file("""
+from django.apps import apps
+
+print ('IMPORT: populating=%r,ready=%r' % (apps._lock.locked(), apps.ready))
+SOME_THING = 1234
+""", 'models.py')
+
+    django_testdir.create_app_file("", '__init__.py')
+    django_testdir.makepyfile("""
+from django.apps import apps
+from tpkg.app.models import SOME_THING
+
+def test_anything():
+    print ('TEST: populating=%r,ready=%r' % (apps._lock.locked(), apps.ready))
+""")
+
+    result = django_testdir.runpytest('-s', '--tb=line')
+    result.stdout.fnmatch_lines(['*IMPORT: populating=True,ready=False*'])
+    result.stdout.fnmatch_lines(['*READY(): populating=True*'])
+    result.stdout.fnmatch_lines(['*TEST: populating=False,ready=True*'])

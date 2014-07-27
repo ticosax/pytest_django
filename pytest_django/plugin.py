@@ -74,6 +74,9 @@ def _load_settings(config, options):
             import configurations.importer
             configurations.importer.install()
 
+        from .compat import setup
+        setup()
+
 
 if pytest.__version__[:3] >= "2.4":
     def pytest_load_initial_conftests(early_config, parser, args):
