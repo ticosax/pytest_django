@@ -15,7 +15,7 @@ from .lazy_django import get_django_version, skip_if_no_django
 __all__ = ['_django_db_setup', 'db', 'transactional_db', 'admin_user',
            'django_user_model', 'django_username_field',
            'client', 'admin_client', 'rf', 'settings', 'live_server',
-           '_live_server_helper']
+           '_static_live_server', '_live_server_helper']
 
 
 # ############### Internal Fixtures ################
@@ -283,18 +283,46 @@ def live_server(request):
     Django documentation for it's full syntax.
 
     NOTE: If the live server needs database access to handle a request
-          your test will have to request database access.  Furthermore
+          your test will have to request database access. Furthermore
           when the tests want to see data added by the live-server (or
           the other way around) transactional database access will be
           needed as data inside a transaction is not shared between
           the live server and test code.
+
+          Static assets will be served for all versions of Django.
+          Except for django >= 1.7, if ``django.contrib.statics`` is not
+          installed.
     """
     skip_if_no_django()
     addr = request.config.getvalue('liveserver')
     if not addr:
-        addr = os.getenv('DJANGO_TEST_LIVE_SERVER_ADDRESS')
+        addr = os.getenv('DJANGO_LIVE_TEST_SERVER_ADDRESS')
     if not addr:
         addr = 'localhost:8081,8100-8200'
+    server = live_server_helper.LiveServer(addr)
+    request.addfinalizer(server.stop)
+    return server
+
+
+@pytest.fixture(scope='function')
+def _static_live_server(request):
+    """Helper to spawn a live_server fixture with
+    ``django.contrib.staticfiles`` installed
+
+    This helper will modify settings to add 'django.contrib.staticfiles' in
+    ``INSTALLED_APPS``.
+
+    Should be used only for internal testing of pytest-django
+    """
+    skip_if_no_django()
+    addr = request.config.getvalue('liveserver')
+    if not addr:
+        addr = os.getenv('DJANGO_LIVE_TEST_SERVER_ADDRESS')
+    if not addr:
+        addr = 'localhost:8081,8100-8200'
+    if 'settings' in request.funcargnames:
+        settings = request.getfuncargvalue('settings')
+        settings.INSTALLED_APPS.append('django.contrib.staticfiles')
     server = live_server_helper.LiveServer(addr)
     request.addfinalizer(server.stop)
     return server
@@ -314,5 +342,6 @@ def _live_server_helper(request):
     transactional_db directly since it is session scoped instead of
     function-scoped.
     """
-    if 'live_server' in request.funcargnames:
+    if ('live_server' in request.funcargnames
+            or '_static_live_server' in request.funcargnames):
         request.getfuncargvalue('transactional_db')

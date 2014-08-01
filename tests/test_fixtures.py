@@ -13,7 +13,7 @@ from django.test.testcases import connections_support_transactions
 
 from .app.models import Item
 from .test_database import noop_transactions
-from .compat import force_text, urlopen
+from .compat import force_text, urlopen, HTTPError
 
 from pytest_django.lazy_django import get_django_version
 
@@ -146,6 +146,48 @@ class TestLiveServer:
     def test_item_transactional_db(self, item_transactional_db, live_server):
         response_data = urlopen(live_server + '/item_count/').read()
         assert force_text(response_data) == 'Item count: 1'
+
+
+class TestLiveServerCanCollectStatic:
+    pytestmark = [
+        pytest.mark.urls('tests.urls_staticliveserver'),
+    ]
+
+    @pytest.mark.skipif(get_django_version() >= (1, 7),
+                        reason="Django < 1.7 required")
+    def test_serve_static(self, live_server, settings):
+        """
+        LiveServer serve static by defaults.
+        """
+        settings.MEDIA_ROOT = 'static'
+        settings.MEDIA_URL = 'static/'
+        response_data = urlopen(live_server + '/static/a_file.txt').read()
+        assert force_text(response_data) == 'bla\n'
+
+    def test_serve_static_with_staticfiles_app(self, _static_live_server,
+                                               settings):
+        """
+        LiveServer always serve statics with ``django.contrib.statics``
+        Handler.
+        """
+        settings.MEDIA_ROOT = 'static'
+        settings.MEDIA_URL = 'static/'
+        response_data = urlopen(
+            _static_live_server + '/static/a_file.txt').read()
+        assert force_text(response_data) == 'bla\n'
+
+    @pytest.mark.skipif(get_django_version() < (1, 7),
+                        reason="Django >= 1.7 required")
+    def test_serve_static_dj17_without_staticfiles_app(self, live_server,
+                                                       settings):
+        """
+        Because ``django.contrib.statics`` is not installed
+        LiveServer can not serve statics with django >= 1.7 .
+        """
+        settings.MEDIA_ROOT = 'static'
+        settings.MEDIA_URL = 'static/'
+        with pytest.raises(HTTPError):
+            urlopen(live_server + '/static/a_file.txt').read()
 
 
 @pytest.mark.extra_settings("""
