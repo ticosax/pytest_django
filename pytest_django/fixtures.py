@@ -313,6 +313,9 @@ def _static_live_server(request):
     ``INSTALLED_APPS``.
 
     Should be used only for internal testing of pytest-django.
+
+    NOTE: This fixture requires ``settings`` fixture. As a user you must also
+          declare this dependency in the argument of your test function.
     """
     skip_if_no_django()
     addr = request.config.getvalue('liveserver')
@@ -320,9 +323,8 @@ def _static_live_server(request):
         addr = os.getenv('DJANGO_LIVE_TEST_SERVER_ADDRESS')
     if not addr:
         addr = 'localhost:8081,8100-8200'
-    if 'settings' in request.funcargnames:
-        settings = request.getfuncargvalue('settings')
-        settings.INSTALLED_APPS.append('django.contrib.staticfiles')
+    settings = request.getfuncargvalue('settings')
+    settings.INSTALLED_APPS.append('django.contrib.staticfiles')
     server = live_server_helper.LiveServer(addr)
     request.addfinalizer(server.stop)
     return server
