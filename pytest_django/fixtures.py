@@ -290,7 +290,7 @@ def live_server(request):
           the live server and test code.
 
           Static assets will be served for all versions of Django.
-          Except for django >= 1.7, if ``django.contrib.statics`` is not
+          Except for django >= 1.7, if ``django.contrib.staticfiles`` is not
           installed.
     """
     skip_if_no_django()
@@ -307,12 +307,12 @@ def live_server(request):
 @pytest.fixture(scope='function')
 def _static_live_server(request):
     """Helper to spawn a live_server fixture with
-    ``django.contrib.staticfiles`` installed
+    ``django.contrib.staticfiles`` installed.
 
     This helper will modify settings to add 'django.contrib.staticfiles' in
     ``INSTALLED_APPS``.
 
-    Should be used only for internal testing of pytest-django
+    Should be used only for internal testing of pytest-django.
     """
     skip_if_no_django()
     addr = request.config.getvalue('liveserver')

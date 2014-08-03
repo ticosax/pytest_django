@@ -157,7 +157,7 @@ class TestLiveServerCanCollectStatic:
                         reason="Django < 1.7 required")
     def test_serve_static(self, live_server, settings):
         """
-        LiveServer serve static by defaults.
+        Test that the LiveServer serves static files by default.
         """
         settings.MEDIA_ROOT = 'static'
         settings.MEDIA_URL = 'static/'
@@ -167,8 +167,11 @@ class TestLiveServerCanCollectStatic:
     def test_serve_static_with_staticfiles_app(self, _static_live_server,
                                                settings):
         """
-        LiveServer always serve statics with ``django.contrib.statics``
-        Handler.
+        LiveServer always serves statics with ``django.contrib.staticfiles``
+        handler.
+
+        _static_live_server fixture modify settings.INSTALLED_APPS by appending
+        ``django.contrib.staticfiles`` in the list of installed apps.
         """
         settings.MEDIA_ROOT = 'static'
         settings.MEDIA_URL = 'static/'
@@ -181,7 +184,7 @@ class TestLiveServerCanCollectStatic:
     def test_serve_static_dj17_without_staticfiles_app(self, live_server,
                                                        settings):
         """
-        Because ``django.contrib.statics`` is not installed
+        Because ``django.contrib.staticfiles`` is not installed
         LiveServer can not serve statics with django >= 1.7 .
         """
         settings.MEDIA_ROOT = 'static'
