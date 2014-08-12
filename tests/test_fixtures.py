@@ -164,20 +164,67 @@ class TestLiveServerCanCollectStatic:
         response_data = urlopen(live_server + '/static/a_file.txt').read()
         assert force_text(response_data) == 'bla\n'
 
-    def test_serve_static_with_staticfiles_app(self, _static_live_server,
-                                               settings):
+    @pytest.mark.extra_settings("""
+        import os
+
+        ROOT_URLCONF = 'tests.urls'
+        INSTALLED_APPS = [
+            'django.contrib.auth',
+            'django.contrib.contenttypes',
+            'django.contrib.sessions',
+            'django.contrib.sites',
+            'tests.app',
+        ]
+
+        STATIC_URL = '/static/'
+        SECRET_KEY = 'foobar'
+
+        SITE_ID = 1234  # Needed for 1.3 compatibility
+
+        MIDDLEWARE_CLASSES = (
+            'django.contrib.sessions.middleware.SessionMiddleware',
+            'django.middleware.common.CommonMiddleware',
+            'django.middleware.csrf.CsrfViewMiddleware',
+            'django.contrib.auth.middleware.AuthenticationMiddleware',
+            'django.contrib.messages.middleware.MessageMiddleware',
+        )
+
+        # extra settings
+        INSTALLED_APPS += ['django.contrib.staticfiles',]
+        """)
+    def test_serve_static_with_staticfiles_app(self, django_testdir, settings):
         """
         LiveServer always serves statics with ``django.contrib.staticfiles``
         handler.
-
-        _static_live_server fixture modify settings.INSTALLED_APPS by appending
-        ``django.contrib.staticfiles`` in the list of installed apps.
         """
         settings.MEDIA_ROOT = 'static'
         settings.MEDIA_URL = 'static/'
-        response_data = urlopen(
-            _static_live_server + '/static/a_file.txt').read()
-        assert force_text(response_data) == 'bla\n'
+
+        django_testdir.create_test_module("""
+            import pytest
+            try:
+                from django.utils.encoding import force_text
+            except ImportError:
+                from django.utils.encoding import force_unicode as force_text
+
+            try:
+                from urllib2 import urlopen, HTTPError
+            except ImportError:
+                from urllib.request import urlopen, HTTPError
+
+            class TestLiveServer:
+                pytestmark = [
+                    pytest.mark.urls('app.urls_staticliveserver'),
+                ]
+                def test_a(self, live_server, settings):
+                    assert ('django.contrib.staticfiles'
+                            in settings.INSTALLED_APPS)
+                    response_data = urlopen(
+                        live_server + '/static/a_file.txt').read()
+                    assert force_text(response_data) == 'bla\\n'
+            """)
+        result = django_testdir.runpytest('--tb=short', '-v')
+        result.stdout.fnmatch_lines(['*test_a*PASSED*'])
 
     @pytest.mark.skipif(get_django_version() < (1, 7),
                         reason="Django >= 1.7 required")

@@ -15,7 +15,7 @@ from .lazy_django import get_django_version, skip_if_no_django
 __all__ = ['_django_db_setup', 'db', 'transactional_db', 'admin_user',
            'django_user_model', 'django_username_field',
            'client', 'admin_client', 'rf', 'settings', 'live_server',
-           '_static_live_server', '_live_server_helper']
+           '_live_server_helper']
 
 
 # ############### Internal Fixtures ################
@@ -304,32 +304,6 @@ def live_server(request):
     return server
 
 
-@pytest.fixture(scope='function')
-def _static_live_server(request):
-    """Helper to spawn a live_server fixture with
-    ``django.contrib.staticfiles`` installed.
-
-    This helper will modify settings to add 'django.contrib.staticfiles' in
-    ``INSTALLED_APPS``.
-
-    Should be used only for internal testing of pytest-django.
-
-    NOTE: This fixture requires ``settings`` fixture. As a user you must also
-          declare this dependency in the argument of your test function.
-    """
-    skip_if_no_django()
-    addr = request.config.getvalue('liveserver')
-    if not addr:
-        addr = os.getenv('DJANGO_LIVE_TEST_SERVER_ADDRESS')
-    if not addr:
-        addr = 'localhost:8081,8100-8200'
-    settings = request.getfuncargvalue('settings')
-    settings.INSTALLED_APPS.append('django.contrib.staticfiles')
-    server = live_server_helper.LiveServer(addr)
-    request.addfinalizer(server.stop)
-    return server
-
-
 @pytest.fixture(autouse=True, scope='function')
 def _live_server_helper(request):
     """Helper to make live_server work, internal to pytest-django
@@ -344,6 +318,5 @@ def _live_server_helper(request):
     transactional_db directly since it is session scoped instead of
     function-scoped.
     """
-    if ('live_server' in request.funcargnames
-            or '_static_live_server' in request.funcargnames):
+    if 'live_server' in request.funcargnames:
         request.getfuncargvalue('transactional_db')
